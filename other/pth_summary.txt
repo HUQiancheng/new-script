@@ -1,0 +1,23 @@
+Summary of .pth file: dataset/data/a24f64f7fb.pth
+
+Keys and corresponding data shapes and types:
+
+image_name: list of <class 'str'>, length = 33
+original_image: list of <class 'numpy.ndarray'>, length = 33
+    Shape of first element: (1168, 1752, 3)
+    Data type of first element: uint8
+2d_semantic_labels: list of <class 'numpy.ndarray'>, length = 33
+    Shape of first element: (1168, 1752)
+    Data type of first element: int64
+camera_params: list of <class 'dict'>, length = 33
+    Structure of first element:
+        focal_length: <class 'torch.Tensor'>
+        principal_point: <class 'torch.Tensor'>
+        radial_params: <class 'list'>
+        R: <class 'torch.Tensor'>
+        T: <class 'torch.Tensor'>
+        use_radial: <class 'bool'>
+        intrinsic_mat: numpy.ndarray, shape = (3, 3), dtype = float64
+        extrinsic: numpy.ndarray, shape = (4, 4), dtype = float64
+        view_width_px: <class 'int'>
+        view_height_px: <class 'int'>
