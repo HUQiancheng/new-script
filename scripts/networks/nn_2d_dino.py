@@ -1,35 +1,50 @@
 import torch
 import torch.nn as nn
-from functools import partial
-from dinov2.eval.linear import create_linear_input
-from dinov2.eval.utils import ModelWithIntermediateLayers
+import torch.hub
+# Also clear the shitty warnings
+import warnings
+
+# Suppress specific warning
+warnings.filterwarnings(
+    "ignore", 
+    message="The default value of the antialias parameter of all the resizing transforms"
+)
+
+import torch
+import torch.nn as nn
+import torch.hub
 
 class DINOv2_Segmentation(nn.Module):
     def __init__(self, num_classes):
         super(DINOv2_Segmentation, self).__init__()
         
-        # Load the DINOv2 model
-        model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14_lc', pretrained=True)
-        autocast_ctx = partial(torch.cuda.amp.autocast, enabled=True, dtype=torch.float16)
-        self.backbone = ModelWithIntermediateLayers(model, n_last_blocks=1, autocast_ctx=autocast_ctx)
+        # Load the pre-trained DINOv2 model
+        self.backbone = torch.hub.load("facebookresearch/dinov2", "dinov2_vits14", pretrained=True)
         
-        # Define the segmentation head
-        sample_output = self.backbone(torch.randn(1, 3, 224, 224))
-        out_dim = create_linear_input(sample_output, use_n_blocks=1, use_avgpool=True).shape[1]
-        
+        # Segmentation head with multiple upsampling steps
         self.segmentation_head = nn.Sequential(
-            nn.Conv2d(out_dim, 256, kernel_size=3, padding=1),
+            nn.Conv2d(in_channels=384, out_channels=256, kernel_size=3, stride=1, padding=1),
             nn.ReLU(inplace=True),
-            nn.Conv2d(256, 128, kernel_size=3, padding=1),
+            nn.Upsample(size=(2, 3), mode='bilinear', align_corners=False),
+            nn.Conv2d(in_channels=256, out_channels=128, kernel_size=3, stride=1, padding=1),
             nn.ReLU(inplace=True),
-            nn.Conv2d(128, num_classes, kernel_size=1),
-            nn.Upsample(scale_factor=32, mode='bilinear', align_corners=False)
+            nn.Upsample(scale_factor=7, mode='bilinear', align_corners=False),
+            nn.Conv2d(in_channels=128, out_channels=num_classes, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Upsample(scale_factor=16, mode='bilinear', align_corners=False),
+        
         )
         
     def forward(self, x):
-        features = self.backbone(x)
-        x = create_linear_input(features, use_n_blocks=1, use_avgpool=True)
+        batch_size = x.size(0)
+        
+        # Forward pass through ViT
+        x = self.backbone(x)
+        
+        # Reshape ViT output to feature map (batch_size, 1, 16, 24)
+        x = x.view(batch_size, 384, 1, 1)
+        
+        # Forward pass through segmentation head
         x = self.segmentation_head(x)
         return x
-
 
