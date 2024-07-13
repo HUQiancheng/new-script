@@ -12,14 +12,16 @@ class MobileNetV3_Segmentation(nn.Module):
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
             nn.Dropout(0.3),  # Dropout with a probability of 0.3
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
             
             nn.Conv2d(256, 128, kernel_size=3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.3),  # Dropout with a probability of 0.3
+            nn.Dropout(0.2),  # Dropout with a probability of 0.2
+            nn.Upsample(scale_factor=8, mode='bilinear', align_corners=False),
             
             nn.Conv2d(128, num_classes, kernel_size=1),
-            nn.Upsample(scale_factor=32, mode='bilinear', align_corners=False)
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
         )
         
     def forward(self, x):
