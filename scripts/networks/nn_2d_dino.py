@@ -1,3 +1,5 @@
+# deprecated model
+# deprecated because the model only return a [CLS] token, so it is just recognition feautures
 import torch
 import torch.nn as nn
 import torch.hub
@@ -46,5 +48,9 @@ class DINOv2_Segmentation(nn.Module):
         
         # Forward pass through segmentation head
         x = self.segmentation_head(x)
+        
+        # Man, I don't even know what I am doing here, this Dino only returns a [CLS] token, so it is just recognition feautures
+        # almost impossible to do segmentation with this model
+        # as i also tried to train it, the network only give same response to all the input
         return x
 
