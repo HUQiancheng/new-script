@@ -7,13 +7,13 @@ class Segformer_Segmentation(nn.Module):
         super(Segformer_Segmentation, self).__init__()
 
         # Load the pre-trained Segformer model
-        self.backbone = SegformerModel.from_pretrained("nvidia/mit-b1", output_hidden_states=True)
+        self.backbone = SegformerModel.from_pretrained("nvidia/mit-b0", output_hidden_states=True)
 
         # Segmentation head using MLP layers
-        self.linear_c4 = nn.Linear(512, 128)  # assuming backbone.config.hidden_sizes[-1] is 512
-        self.linear_c3 = nn.Linear(320, 128)
-        self.linear_c2 = nn.Linear(128, 128)
-        self.linear_c1 = nn.Linear(64, 128)
+        self.linear_c4 = nn.Linear(256, 128)  # assuming backbone.config.hidden_sizes[-1] is 512
+        self.linear_c3 = nn.Linear(160, 128)
+        self.linear_c2 = nn.Linear(64, 128)
+        self.linear_c1 = nn.Linear(32, 128)
 
         self.relu = nn.ReLU(inplace=True)
         self.upsample1 = nn.Upsample(scale_factor=1, mode='bilinear', align_corners=False)
@@ -27,20 +27,6 @@ class Segformer_Segmentation(nn.Module):
         self.output_linear = nn.Linear(128, num_classes)
 
     def forward(self, x):
-        # Ensure the input and model are on the same device
-        device = x.device
-        self.backbone.to(device)
-        self.linear_c4.to(device)
-        self.linear_c3.to(device)
-        self.linear_c2.to(device)
-        self.linear_c1.to(device)
-        self.concat_linear.to(device)
-        self.output_linear.to(device)
-        self.relu.to(device)
-        self.upsample1.to(device)
-        self.upsample2.to(device)
-        self.upsample3.to(device)
-        self.upsample4.to(device)
 
         # Forward pass through Segformer backbone
         outputs = self.backbone(pixel_values=x)
