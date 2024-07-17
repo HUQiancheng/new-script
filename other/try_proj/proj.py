@@ -40,6 +40,7 @@ class PointCloud3D:
         # Create homogeneous coordinates
         ones = np.ones_like(depth)
         homogeneous_coords = np.stack((j, i, ones), axis=-1)
+        #
 
         # Convert pixel coordinates to camera coordinates
         K = self.camera.get_intrinsics()
@@ -55,6 +56,9 @@ class PointCloud3D:
 
         labels = self.label_image.reshape(-1, 1)
         point_cloud = np.hstack((world_coords, labels))
+        
+        print('shape of every variables in PointCloud3D')
+        print(f'i: {i.shape}, j: {j.shape}, depth: {depth.shape}, homogeneous_coords: {homogeneous_coords.shape}, camera_coords: {camera_coords.shape}, world_coords: {world_coords.shape}, labels: {labels.shape}')
         
         return point_cloud
 

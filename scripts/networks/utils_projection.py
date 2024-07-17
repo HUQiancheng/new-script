@@ -22,24 +22,39 @@ def project_to_3d(features, depth, K, R, T, resized_rate=1168/448, ignore_index=
     i, j = torch.meshgrid(torch.arange(H), torch.arange(W), indexing='ij')
     i = i.to(features.device)
     j = j.to(features.device)
-    
+
     depth = depth.view(B, -1)  # (B, H * W)
     features = features.view(B, C, -1)  # (B, C, H * W)
 
     i = (resized_rate * i.view(-1).unsqueeze(0)).repeat(B, 1).float()  # (B, H * W)
     j = (resized_rate * j.view(-1).unsqueeze(0)).repeat(B, 1).float()  # (B, H * W)
+
     
     ones = torch.ones_like(i, dtype=torch.float).to(features.device)
     homogeneous_coords = torch.stack((j, i, ones), dim=-1)  # (B, H * W, 3)
 
     K_inv = torch.inverse(K)  # (B, 3, 3)
     camera_coords = torch.bmm(K_inv, homogeneous_coords.permute(0, 2, 1)) * depth.unsqueeze(1)  # (B, 3, H * W)
-
-    R = R.squeeze(1)  # (B, 3, 3)
+    
+    
+    # 处理R,T
+    R = R.squeeze(1).transpose(1,2)  # (B, 3, 3)
+    # 把R矩阵前两行乘以 -1
+    R[:, 0, :] *= -1
+    R[:, 1, :] *= -1
+    
+    # print('R:', R)  
+    
     T = T.squeeze(1)  # (B, 3)
+    
+    # 把T的前两个元素乘以 -1
+    T[:, 0] *= -1
+    T[:, 1] *= -1
+    
+    # 好像是因为手系的问题
+    
 
-    # R_inv = R.transpose(1, 2)  # (B, 3, 3)
-    R_inv = torch.inverse(R)  # (B, 3, 3)
+    R_inv = R.transpose(1, 2)  
     T = 1000 * (T / resized_rate)
     t_inv = -torch.bmm(R_inv, T.unsqueeze(2)).squeeze(2)  # (B, 3)
     
@@ -119,7 +134,7 @@ def save_point_cloud_to_ply(point_cloud_with_colors, file_path):
         o3d_point_cloud.points = o3d.utility.Vector3dVector(point_cloud[:, :3])
         o3d_point_cloud.colors = o3d.utility.Vector3dVector(point_cloud[:, 3:])
         
-        # Save the point cloud to a PLY file
-        output_ply_path = f"{file_path}/point_cloud_{i}.ply"
-        o3d.io.write_point_cloud(output_ply_path, o3d_point_cloud)
-        print(f"Point cloud saved to {output_ply_path}")
+        # # Save the point cloud to a PLY file
+        # output_ply_path = f"{file_path}/point_cloud_{i}.ply"
+        # o3d.io.write_point_cloud(output_ply_path, o3d_point_cloud)
+        # print(f"Point cloud saved to {output_ply_path}")

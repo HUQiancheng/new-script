@@ -37,6 +37,7 @@ class DSLRDataset(Dataset):
         # Randomly select an image from the .pth file
         img_index = np.random.randint(len(original_images))
         
+        
         original_image = original_images[img_index]
         semantic_label = semantic_labels[img_index]
         depth_image = depth_images[img_index]
