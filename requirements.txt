@@ -5,4 +5,5 @@ transformers
 matplotlib
 #ipykernel
 iopath
-
+spconv
+trimesh
