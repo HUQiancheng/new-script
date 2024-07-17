@@ -49,9 +49,16 @@ class DSLRDataset(Dataset):
             'image': original_image,
             'label': semantic_label,
             'depth': depth_image,
+            'focal_length': cam_params['focal_length'],
+            'principal_point': cam_params['principal_point'],
+            'radial_params': cam_params['radial_params'],
             'R': cam_params['R'],
             'T': cam_params['T'],
+            'use_radial': cam_params['use_radial'],
             'intrinsic_mat': cam_params['intrinsic_mat'],
+            'extrinsic': cam_params['extrinsic'],
+            'view_width_px': cam_params['view_width_px'],
+            'view_height_px': cam_params['view_height_px']
         }
         
         if self.transform:

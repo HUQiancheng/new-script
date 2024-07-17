@@ -1,5 +1,6 @@
 *.pth
 *.tar
+*.ply
 __pycache__/
 runs/
 dataset/
