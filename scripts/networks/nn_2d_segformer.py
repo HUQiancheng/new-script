@@ -2,18 +2,32 @@ import torch
 import torch.nn as nn
 from transformers import SegformerModel
 
+# 如果要更换模型需要修改的地方：
+# 1. "nvidia/mit-b1" 改为 "nvidia/mit-b0"
+# 2. 也是backbone需要分别除以2，见被注释掉的部分
+# 3. 最重要的是，如果你需要更换模型，请确保你的checkpoints已经清空，否则会加载之前的，模型结构不匹配
+
 class Segformer_Segmentation(nn.Module):
     def __init__(self, num_classes):
         super(Segformer_Segmentation, self).__init__()
 
         # Load the pre-trained Segformer model
-        self.backbone = SegformerModel.from_pretrained("nvidia/mit-b1", output_hidden_states=True)
+        self.backbone = SegformerModel.from_pretrained("nvidia/mit-b1", output_hidden_states=True) 
+        
+        # # Load this pre-trained Segformer model if not enough Memory
+        # self.backbone = SegformerModel.from_pretrained("nvidia/mit-b1", output_hidden_states=True) 
 
         # Segmentation head using MLP layers
         self.linear_c4 = nn.Linear(512, 128)  # assuming backbone.config.hidden_sizes[-1] is 128
         self.linear_c3 = nn.Linear(320, 128)
         self.linear_c2 = nn.Linear(128, 128)
         self.linear_c1 = nn.Linear(64, 128)
+        
+        # # Modify the channel dimensions as if you changed to "nvidia/mit-b0" like this:
+        # self.linear_c4 = nn.Linear(256, 128)  # assuming backbone.config.hidden_sizes[-1] is 128
+        # self.linear_c3 = nn.Linear(160, 128)
+        # self.linear_c2 = nn.Linear(64, 128)
+        # self.linear_c1 = nn.Linear(32, 128)
 
         self.relu = nn.ReLU(inplace=True)
         self.upsample1 = nn.Upsample(scale_factor=1, mode='bilinear', align_corners=False)

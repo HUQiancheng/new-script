@@ -1,3 +1,26 @@
+# 已经废弃的模型，不可用，可以去看看别的
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # deprecated model
 # deprecated because the model only return a [CLS] token, so it is just recognition feautures
 import torch

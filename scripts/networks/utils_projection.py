@@ -134,7 +134,7 @@ def save_point_cloud_to_ply(point_cloud_with_colors, file_path):
         o3d_point_cloud.points = o3d.utility.Vector3dVector(point_cloud[:, :3])
         o3d_point_cloud.colors = o3d.utility.Vector3dVector(point_cloud[:, 3:])
         
-        # # Save the point cloud to a PLY file
-        # output_ply_path = f"{file_path}/point_cloud_{i}.ply"
-        # o3d.io.write_point_cloud(output_ply_path, o3d_point_cloud)
-        # print(f"Point cloud saved to {output_ply_path}")
+        # Save the point cloud to a PLY file
+        output_ply_path = f"{file_path}/point_cloud_{i}.ply"
+        o3d.io.write_point_cloud(output_ply_path, o3d_point_cloud)
+        print(f"Point cloud saved to {output_ply_path}")
