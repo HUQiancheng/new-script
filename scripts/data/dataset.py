@@ -32,14 +32,16 @@ class DSLRDataset(Dataset):
         original_images = data['original_image']
         semantic_labels = data['2d_semantic_labels']
         
-        # Randomly select an image from the .pth file
-        img_index = np.random.randint(len(original_images))
+        # Randomly select two image from the .pth file
+        img_indices = np.random.choice(len(original_images), size=2, replace=False)
+        img_index1, img_index2 = img_indices[0], img_indices[1]
         
-        original_image = original_images[img_index]
-        semantic_label = semantic_labels[img_index]
+        
+        original_image = np.stack((original_images[img_index1],original_images[img_index2]))
+        semantic_label = np.stack((semantic_labels[img_index1],semantic_labels[img_index2]))
         
         # Convert to CHW format
-        original_image = original_image.transpose((2, 0, 1))
+        original_image = original_image.transpose((0, 3, 1, 2))
         
         sample = {
             'image': original_image,
