@@ -2,7 +2,40 @@ import torch
 import torch.nn as nn
 import spconv.pytorch as spconv
 from spconv.pytorch.utils import PointToVoxel
-### 缺乏SpatialShape相关逻辑，因为网络结构固定，所以目前只能使用固定的SpatialShape#####
+
+"""
+====================================
+点云特征到稀疏卷积张量的转换流程
+====================================
+
+每个类都有明确的职责，处理数据并将结果传递给下一个类，从而实现一个端到端的点云特征处理管道。主要类包括：
+
+1. Voxel 相关
+-------------
+    - Voxelizer 类: 
+        - 负责将点云数据转换为体素数据。
+        - 包含 generate_voxels 方法，从点云数据生成体素特征、体素坐标和每个体素中的点数。
+    - VoxelEncoder 类:
+        - 负责编码体素特征。
+        - 包含 forward 方法，处理批量点云数据并进行体素化和编码。
+        - 包含 encode_voxels 方法，通过求平均值编码体素特征。
+
+2. Tensor 相关
+--------------
+    - TensorHelper 类:
+        - 负责将编码后的特征和坐标转换为 Spconv 所需的稀疏张量。
+        - 包含 create_spconv_tensor 方法，合并批次中的特征和坐标并创建稀疏张量。
+    - PC2Tensor 类（端到端封装）:
+        - 负责将点云特征输入转换为 Spconv 稀疏张量输出。
+        - 包含 forward 方法，调用 VoxelEncoder 进行体素化和编码，并通过 TensorHelper 创建稀疏张量。
+
+未来开发方向
+=============
+- 目前的 Voxelizer 只是简单地将点云数据转换为体素。Spatial Shape并没有涉及, 可能导致转化失败。
+- VoxelEncoder 采用的是求平均值的方式进行编码。但是label信息并没有被考虑进去, 这是整数, 需要采取最频繁的点。
+- 考虑结合Kaggle那篇文章, 设计dataset, 最重要的3D几何信息是要与2D匹配。
+"""
+
 
 
 #########################   数据相关    #####################
@@ -96,11 +129,7 @@ class VoxelEncoder(nn.Module):
     
     def encode_voxels(self, voxels, num_points_per_voxel):
         """
-        通过平均每个体素中的点来编码体素特征。
 
-        参数:
-            voxels (Tensor): 体素化后的特征，形状为 (num_voxels, max_points_per_voxel, C)。
-            num_points_per_voxel (Tensor): 每个体素中的点数，形状为 (num_voxels)。
 
         返回:
             points_mean (Tensor): 编码后的体素特征，形状为 (num_voxels, C)。
