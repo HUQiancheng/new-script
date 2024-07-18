@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import spconv.pytorch as spconv
 from spconv.pytorch.utils import PointToVoxel
-### 缺乏SpatialShape相关逻辑，因为网络结构固定，所以目前只能使用固定的SpatialShape#####
+
 
 
 #########################   数据相关    #####################
@@ -11,7 +11,10 @@ def load_pth(file_path):
     return torch.load(file_path)
 
 
+
+
 #########################  Voxel相关   ######################
+ 
 class Voxelizer:
     def __init__(self, device):
         """
@@ -42,14 +45,10 @@ class Voxelizer:
             coords (Tensor): 体素坐标，形状为 (num_voxels, 3)。
             num_points_per_voxel (Tensor): 每个体素中的点数，形状为 (num_voxels)。
         """
-        try:
-            voxels, coords, num_points_per_voxel = self.point_to_voxel_converter(pc, empty_mean=True)
-        except Exception as e:
-            raise RuntimeError(f"Failed to generate voxels: {e}")
-        
+        voxels, coords, num_points_per_voxel = self.point_to_voxel_converter(pc, empty_mean=True)
         return voxels, coords, num_points_per_voxel
-
     
+ 
 class VoxelEncoder(nn.Module):
     def __init__(self, device):
         """
@@ -82,11 +81,8 @@ class VoxelEncoder(nn.Module):
         # 处理批量中的每个点云
         for i in range(batch_size):
             pc = point_cloud_features[i].to(self.device)
-            try:
-                voxels, coords, num_points_per_voxel = self.voxelizer.generate_voxels(pc)
-                encoded_features = self.encode_voxels(voxels, num_points_per_voxel)
-            except Exception as e:
-                raise RuntimeError(f"Failed to process batch {i}: {e}")
+            voxels, coords, num_points_per_voxel = self.voxelizer.generate_voxels(pc)
+            encoded_features = self.encode_voxels(voxels, num_points_per_voxel)
             
             all_voxels.append(encoded_features)
             all_coords.append(coords)
@@ -105,14 +101,12 @@ class VoxelEncoder(nn.Module):
         返回:
             points_mean (Tensor): 编码后的体素特征，形状为 (num_voxels, C)。
         """
-        try:
-            points_mean = voxels.sum(dim=1, keepdim=False)
-            normalizer = torch.clamp_min(num_points_per_voxel.view(-1, 1), min=1.0).type_as(voxels)
-            points_mean = points_mean / normalizer
-        except Exception as e:
-            raise RuntimeError(f"\nFailed to encode voxels: {e}")
-        
+        points_mean = voxels.sum(dim=1, keepdim=False)
+        normalizer = torch.clamp_min(num_points_per_voxel.view(-1, 1), min=1.0).type_as(voxels)
+        points_mean = points_mean / normalizer
         return points_mean
+
+
 
 
 #########################  Tensor相关   ######################
@@ -133,15 +127,10 @@ class TensorHelper:
         all_features = torch.cat(all_features, dim=0)
         all_coords = torch.cat(all_coords, dim=0)
         
-        try:
-            spconv_tensor = spconv.SparseConvTensor(
-                all_features, all_coords, spatial_shape, batch_size
-            )
-        except Exception as e:
-            raise RuntimeError(f"\nFailed to create SparseConvTensor: {e}")
-        
+        spconv_tensor = spconv.SparseConvTensor(
+            all_features, all_coords, spatial_shape, batch_size
+        )
         return spconv_tensor
-
     
 # PC2Tensor 类：端到端封装，输入点云特征，输出Spconv Tensor
 class PC2Tensor(nn.Module):
@@ -152,13 +141,13 @@ class PC2Tensor(nn.Module):
         self.voxel_encoder = VoxelEncoder(device)
 
     def forward(self, point_cloud_features):
-        try:
-            encoded_features, voxel_coords, _ = self.voxel_encoder(point_cloud_features)
-            spconv_tensor = TensorHelper.create_spconv_tensor(encoded_features, voxel_coords, point_cloud_features.shape[0], self.spatial_shape)
-        except Exception as e:
-            raise RuntimeError(f"\nFailed in PC2Tensor forward pass: {e}")
-        
+        encoded_features, voxel_coords, _ = self.voxel_encoder(point_cloud_features)
+        spconv_tensor = TensorHelper.create_spconv_tensor(encoded_features, voxel_coords, point_cloud_features.shape[0], self.spatial_shape)
         return spconv_tensor
+
+
+
+
 
 
 #########################  网络相关（实验性）   ######################
@@ -177,12 +166,12 @@ class SimpleSpConvNet(nn.Module):
         )
         
     def forward(self, x):
-        try:
-            x = self.conv_input(x)
-        except Exception as e:
-            raise RuntimeError(f"\nFailed in SimpleSpConvNet forward pass: {e}")
-        
+        x = self.conv_input(x)
         return x
+
+
+
+
 
 
 # Example Usage
