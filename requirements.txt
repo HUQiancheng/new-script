@@ -1,9 +1,9 @@
-opencv-python
+# opencv-python
 numpy
-#tensorboard
+# tensorboard
 transformers
 matplotlib
-#ipykernel
-iopath
-spconv
-trimesh
+# ipykernel
+# iopath
+# spconv
+# trimesh

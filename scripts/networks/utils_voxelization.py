@@ -22,11 +22,11 @@ class Voxelizer:
         """
         self.device = device
         self.point_to_voxel_converter = PointToVoxel(
-            vsize_xyz=[0.05, 0.05, 0.05], 
-            coors_range_xyz=[-1, -2, -2, 1, 2, 2], 
+            vsize_xyz=[0.1, 0.1, 0.1],  #[0.05, 0.05, 0.05]还是内存不够
+            coors_range_xyz=[-1, -1, -1, 2, 3, 3], 
             num_point_features=101,
             max_num_voxels=2000, 
-            max_num_points_per_voxel=25,
+            max_num_points_per_voxel=10,
             device=device
         )
         
@@ -195,7 +195,7 @@ def main():
     print('Tensor shape', point_cloud_features.shape)
     print('Tensor type', point_cloud_features.dtype)
     
-    spatial_shape = [40, 80, 80]
+    spatial_shape = [30, 40, 40]
     pc2tensor = PC2Tensor(device, spatial_shape)
     spconv_tensor = pc2tensor(point_cloud_features)
     

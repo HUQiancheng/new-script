@@ -11,23 +11,23 @@ class Segformer_Segmentation(nn.Module):
     def __init__(self, num_classes):
         super(Segformer_Segmentation, self).__init__()
 
-        # Load the pre-trained Segformer model
-        self.backbone = SegformerModel.from_pretrained("nvidia/mit-b1", output_hidden_states=True) 
-        
-        # # Load this pre-trained Segformer model if not enough Memory
+        # # Load the pre-trained Segformer model
         # self.backbone = SegformerModel.from_pretrained("nvidia/mit-b1", output_hidden_states=True) 
-
-        # Segmentation head using MLP layers
-        self.linear_c4 = nn.Linear(512, 128)  # assuming backbone.config.hidden_sizes[-1] is 128
-        self.linear_c3 = nn.Linear(320, 128)
-        self.linear_c2 = nn.Linear(128, 128)
-        self.linear_c1 = nn.Linear(64, 128)
         
-        # # Modify the channel dimensions as if you changed to "nvidia/mit-b0" like this:
-        # self.linear_c4 = nn.Linear(256, 128)  # assuming backbone.config.hidden_sizes[-1] is 128
-        # self.linear_c3 = nn.Linear(160, 128)
-        # self.linear_c2 = nn.Linear(64, 128)
-        # self.linear_c1 = nn.Linear(32, 128)
+        # Load this pre-trained Segformer model if not enough Memory
+        self.backbone = SegformerModel.from_pretrained("nvidia/mit-b0", output_hidden_states=True) 
+
+        # # Segmentation head using MLP layers
+        # self.linear_c4 = nn.Linear(512, 128)  # assuming backbone.config.hidden_sizes[-1] is 128
+        # self.linear_c3 = nn.Linear(320, 128)
+        # self.linear_c2 = nn.Linear(128, 128)
+        # self.linear_c1 = nn.Linear(64, 128)
+        
+        # Modify the channel dimensions as if you changed to "nvidia/mit-b0" like this:
+        self.linear_c4 = nn.Linear(256, 128)  # assuming backbone.config.hidden_sizes[-1] is 128
+        self.linear_c3 = nn.Linear(160, 128)
+        self.linear_c2 = nn.Linear(64, 128)
+        self.linear_c1 = nn.Linear(32, 128)
 
         self.relu = nn.ReLU(inplace=True)
         self.upsample1 = nn.Upsample(scale_factor=1, mode='bilinear', align_corners=False)

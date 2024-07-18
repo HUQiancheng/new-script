@@ -7,10 +7,9 @@ class SimpleSpConvNet(nn.Module):
             spconv.SparseConv3d(num_classes, 64, 3, padding=1),
             nn.BatchNorm1d(64),
             nn.ReLU(),
-            spconv.SubMConv3d(64, 64, 3, padding=1),
-            nn.BatchNorm1d(64),
+            spconv.SubMConv3d(64, 32, 3, padding=1),
+            nn.BatchNorm1d(32),
             nn.ReLU(),
-            spconv.SparseConv3d(64, 32, 3, padding=1),
         )
         
     def forward(self, x):
