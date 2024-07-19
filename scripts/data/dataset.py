@@ -33,9 +33,7 @@ class DSLRDataset(Dataset):
         semantic_labels = data['2d_semantic_labels']
         depth_images = data['depth_image']
         camera_params = data['camera_params']
-        # R = camera_params['R']
-        # T = camera_params['T']
-        # intrinsic_mat = camera_params['intrinsic_mat']
+
         
         # Randomly select two image from the .pth file
         img_indices = np.random.choice(len(original_images), size=2, replace=False)
@@ -61,6 +59,7 @@ class DSLRDataset(Dataset):
             'R': R,
             'T': T,
             'intrinsic_mat': intrinsic_mat
+            # 'scene_id': scene_id  # TODO: Add scene_id to the sample
         }
         
         if self.transform:
