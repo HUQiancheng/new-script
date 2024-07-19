@@ -141,7 +141,7 @@ class VoxelEncoder(nn.Module):
         except Exception as e:
             raise RuntimeError(f"\nFailed to encode voxels: {e}")
         
-        return points_mean
+        return points_mean # TODO: Overload this method to include label information
 
 
 #########################  Tensor相关   ######################

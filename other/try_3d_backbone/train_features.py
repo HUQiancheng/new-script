@@ -66,7 +66,7 @@ def visualize_labels_as_voxels(indices, labels, voxel_size=0.05):
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    pth_file = "/home/lukas/Desktop/new-script/other/try_3d_backbone/spconv_tensor_epoch_500_batch_0.pth"
+    pth_file = "/home/lukas/Desktop/new-script/other/try_3d_backbone/features/spconv_tensor_epoch_500_batch_0.pth"
     input = load_spconv_tensor(pth_file, device)
     
     labels = preprocess_labels(input)
