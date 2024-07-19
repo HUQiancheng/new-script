@@ -119,7 +119,7 @@ def colorize_point_cloud(point_cloud_with_predictions, palette):
     
     return point_cloud_with_colors
 
-def save_point_cloud_to_ply(point_cloud_with_colors, file_path):
+def save_point_cloud_to_ply(epoch, point_cloud_with_colors, file_path):
     """
     Save the point cloud to a PLY file.
     
@@ -135,6 +135,6 @@ def save_point_cloud_to_ply(point_cloud_with_colors, file_path):
         o3d_point_cloud.colors = o3d.utility.Vector3dVector(point_cloud[:, 3:])
         
         # Save the point cloud to a PLY file
-        output_ply_path = f"{file_path}/point_cloud_{i}.ply"
+        output_ply_path = f"{file_path}/point_cloud_epoch-{epoch}_batch-{i}.ply"
         o3d.io.write_point_cloud(output_ply_path, o3d_point_cloud)
         print(f"Point cloud saved to {output_ply_path}")

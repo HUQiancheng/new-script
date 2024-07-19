@@ -33,26 +33,34 @@ class DSLRDataset(Dataset):
         semantic_labels = data['2d_semantic_labels']
         depth_images = data['depth_image']
         camera_params = data['camera_params']
+        # R = camera_params['R']
+        # T = camera_params['T']
+        # intrinsic_mat = camera_params['intrinsic_mat']
         
-        # Randomly select an image from the .pth file
-        img_index = np.random.randint(len(original_images))
+        # Randomly select two image from the .pth file
+        img_indices = np.random.choice(len(original_images), size=2, replace=False)
+        img_indices.astype(np.longlong)
+        img_index1, img_index2 = img_indices[0], img_indices[1]        
         
+        original_image = np.stack((original_images[img_index1],original_images[img_index2]))
+        semantic_label = np.stack((semantic_labels[img_index1],semantic_labels[img_index2]))
+        depth_image = np.stack((depth_images[img_index1],depth_images[img_index2]))
+        # Convert camera parameters to numpy arrays and stack
+        R = np.stack((camera_params[img_index1]['R'].numpy(), camera_params[img_index2]['R'].numpy()))
+        T = np.stack((camera_params[img_index1]['T'].numpy(), camera_params[img_index2]['T'].numpy()))
+        intrinsic_mat = np.stack((camera_params[img_index1]['intrinsic_mat'], camera_params[img_index2]['intrinsic_mat']))
         
-        original_image = original_images[img_index]
-        semantic_label = semantic_labels[img_index]
-        depth_image = depth_images[img_index]
-        cam_params = camera_params[img_index]
         
         # Convert to CHW format
-        original_image = original_image.transpose((2, 0, 1))
+        original_image = original_image.transpose((0, 3, 1, 2))
         
         sample = {
             'image': original_image,
             'label': semantic_label,
             'depth': depth_image,
-            'R': cam_params['R'],
-            'T': cam_params['T'],
-            'intrinsic_mat': cam_params['intrinsic_mat'],
+            'R': R,
+            'T': T,
+            'intrinsic_mat': intrinsic_mat
         }
         
         if self.transform:
