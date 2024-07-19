@@ -1,0 +1,11 @@
+Summary of .pth file: /home/lukas/Desktop/new-script/other/try_3d_backbone/data/0a5c013435.pth
+
+Keys and corresponding data shapes and types:
+
+scene_id: <class 'str'>
+vtx_coords: <class 'numpy.ndarray'>
+vtx_colors: <class 'numpy.ndarray'>
+vtx_num_labels: <class 'numpy.ndarray'>
+vtx_labels: <class 'numpy.ndarray'>
+vtx_instance_labels: <class 'numpy.ndarray'>
+vtx_instance_anno_id: <class 'numpy.ndarray'>
