@@ -2,6 +2,7 @@
 *.tar
 *.ply
 *.zip
+new-script-hua/
 __pycache__/
 runs/
 dataset/
