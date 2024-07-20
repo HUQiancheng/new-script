@@ -33,6 +33,7 @@ class DSLRDataset(Dataset):
         semantic_labels = data['2d_semantic_labels']
         depth_images = data['depth_image']
         camera_params = data['camera_params']
+        scene_id = data['scene_id']
 
         
         # Randomly select two image from the .pth file
@@ -46,8 +47,7 @@ class DSLRDataset(Dataset):
         # Convert camera parameters to numpy arrays and stack
         R = np.stack((camera_params[img_index1]['R'].numpy(), camera_params[img_index2]['R'].numpy()))
         T = np.stack((camera_params[img_index1]['T'].numpy(), camera_params[img_index2]['T'].numpy()))
-        intrinsic_mat = np.stack((camera_params[img_index1]['intrinsic_mat'], camera_params[img_index2]['intrinsic_mat']))
-        
+        intrinsic_mat = np.stack((camera_params[img_index1]['intrinsic_mat'], camera_params[img_index2]['intrinsic_mat']))        
         
         # Convert to CHW format
         original_image = original_image.transpose((0, 3, 1, 2))
@@ -58,8 +58,8 @@ class DSLRDataset(Dataset):
             'depth': depth_image,
             'R': R,
             'T': T,
-            'intrinsic_mat': intrinsic_mat
-            # 'scene_id': scene_id  # TODO: Add scene_id to the sample
+            'intrinsic_mat': intrinsic_mat,
+            'scene_id': scene_id  # TODO: Add scene_id to the sample
         }
         
         if self.transform:
