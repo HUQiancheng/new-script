@@ -11,6 +11,7 @@ from scripts.utils.load_save_models import save_checkpoint, get_latest_checkpoin
 # from scripts.utils.visualizer import visualize_predictions, visualize_dataloader
 import open3d as o3d
 from scripts.utils.utils_voxel_new import visualize_labels_as_voxels, SimpleSpConvNet, PC2Tensor
+from spconv.pytorch.utils import PointToVoxel, gather_features_by_pc_voxel_id
 CUDA_LAUNCH_BLOCKING=1
 # Set CUDA_LAUNCH_BLOCKING for accurate stack trace
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
@@ -123,39 +124,40 @@ for epoch in range(start_epoch, num_epochs):
     total_samples = 0
     for i, pc in enumerate(train_loader):
         coords = pc['coords'].to(device)
-        coords = torch.cat((coords, torch.ones(coords.shape[0], coords.shape[1],1).to(device)), dim=-1)
+        # coords = torch.cat((coords, torch.ones(coords.shape[0], coords.shape[1],1).to(device)), dim=-1)
         labels = pc['labels'].to(device)
         # Add an extra dimension to labels to make its shape [1, 1203566, 1]
         labels = labels.unsqueeze(-1)
         invalid_mask = (labels < 0)
         labels[invalid_mask] = IGNORE_INDEX
         # # Concatenate along the last dimension
-        # inputs = torch.cat((coords, labels), dim=-1)
+        inputs = torch.cat((coords, labels), dim=-1)
 
         spatial_shape = [5, 6, 6] # (x_max - x_min) / voxel_size, x+1, y, z
         pc2tensor = PC2Tensor(device, spatial_shape)
-        spconv_tensor = pc2tensor(co)
+        spconv_tensor,pc_voxel_id = pc2tensor(inputs)
 
         # label_spconv_tensor = spconv_tensor.features
-        labels_sparse_tensor = spconv.SparseConvTensor(
-            spconv_tensor.features, spconv_tensor.indices, spconv_tensor.spatial_shape, spconv_tensor.batch_size
-        )
+        # labels_sparse_tensor = spconv.SparseConvTensor(
+        #     spconv_tensor.features, spconv_tensor.indices, spconv_tensor.spatial_shape, spconv_tensor.batch_size
+        # )
         optimizer.zero_grad()
         output = model3d(spconv_tensor)
-        output_dense = output.dense()
+        # output_dense = output.dense()
+        pc_voxel_id = torch.stack( pc_voxel_id, dim=0).squeeze(0)
+        
+        output = gather_features_by_pc_voxel_id(output.features, pc_voxel_id)
+        
 
-        # Flatten the tensors for loss computation
-        output_flat = output_dense.view(-1, output_dense.shape[1])
-        labels_flat = labels_sparse_tensor.dense().view(-1).long()
         # labels_flat = labels_flat.unsqueeze(-1)
-        loss = criterion(output_flat, labels_flat)
+        loss = criterion(output, pc_voxel_id)
         loss.backward()
         optimizer.step()
 
         print(f"Epoch [{epoch + 1}/500], Loss: {loss.item()}")
 
 
-    print('Output shape:', output.dense().shape)
+    # print('Output shape:', output.dense().shape)
 
     # Visualize label voxels
     # voxel_grid = visualize_labels_as_voxels(inputs.indices.cpu().numpy(), labels.cpu().numpy())
