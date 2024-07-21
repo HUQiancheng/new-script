@@ -47,7 +47,7 @@ def load_pth(file_path):
 
 #########################  Voxel相关   ######################
 class Voxelizer:
-    def __init__(self, device):
+    def __init__(self, device, use_label=False):
         """
         初始化 Voxelizer。
 
@@ -55,6 +55,7 @@ class Voxelizer:
             device (torch.device): 运行计算的设备。
         """
         self.device = device
+        self.use_label = use_label
         self.gen = PointToVoxel(
             vsize_xyz=[1, 1, 1],  # [0.05, 0.05, 0.05]还是内存不够
             coors_range_xyz=[-1, -1, -1, 3, 5, 5],
@@ -78,16 +79,20 @@ class Voxelizer:
         """
         try:
             # voxels, coords, num_points_per_voxel = self.point_to_voxel_converter(pc, empty_mean=True)
-            voxels, coords, num_points_per_voxel, pc_voxel_id = self.gen.generate_voxel_with_id(pc, empty_mean=True)
-            print(f'voxels shape: {voxels.shape}, coords shape: {coords.shape}, num_points_per_voxel shape: {num_points_per_voxel.shape}')
+            if self.use_label:
+                voxels, coords, num_points_per_voxel, pc_voxel_id = self.gen.generate_voxel_with_id(pc, empty_mean=True)
+            else:
+                voxels, coords, num_points_per_voxel = self.gen(pc, empty_mean=True)
         except Exception as e:
             raise RuntimeError(f"Failed to generate voxels: {e}")
-
-        return voxels, coords, num_points_per_voxel, pc_voxel_id
+        if self.use_label:
+            return voxels, coords, num_points_per_voxel, pc_voxel_id
+        else:
+            return voxels, coords, num_points_per_voxel
 
 
 class VoxelEncoder(nn.Module):
-    def __init__(self, device):
+    def __init__(self, device, use_label=False):
         """
         初始化 VoxelEncoder。
 
@@ -96,7 +101,8 @@ class VoxelEncoder(nn.Module):
         """
         super().__init__()
         self.device = device
-        self.voxelizer = Voxelizer(device)
+        self.voxelizer = Voxelizer(device, use_label)
+        self.use_label = use_label
 
     def forward(self, point_cloud_features):
         """
@@ -114,13 +120,17 @@ class VoxelEncoder(nn.Module):
         all_voxels = []
         all_coords = []
         all_num_points = []
-        all_pc_voxel_id = []
+        if self.use_label:
+            all_pc_voxel_id = []
 
         # 处理批量中的每个点云
         for i in range(batch_size):
             pc = point_cloud_features[i].to(self.device)
             try:
-                voxels, coords, num_points_per_voxel, pc_voxel_id = self.voxelizer.generate_voxels(pc)
+                if self.use_label:
+                    voxels, coords, num_points_per_voxel, pc_voxel_id = self.voxelizer.generate_voxels(pc)
+                else:
+                    voxels, coords, num_points_per_voxel = self.voxelizer.generate_voxels(pc)
                 voxels = self.encode_voxels(voxels, num_points_per_voxel) # id encoder 选取最频繁的点
             except Exception as e:
                 raise RuntimeError(f"Failed to process batch {i}: {e}")
@@ -128,11 +138,14 @@ class VoxelEncoder(nn.Module):
             all_voxels.append(voxels)
             all_coords.append(coords)
             all_num_points.append(num_points_per_voxel)
-            all_pc_voxel_id.append(pc_voxel_id)
+            if self.use_label:
+                all_pc_voxel_id.append(pc_voxel_id)
             
         
-
-        return all_voxels, all_coords, all_num_points, all_pc_voxel_id
+        if self.use_label:
+            return all_voxels, all_coords, all_num_points, all_pc_voxel_id
+        else:
+            return all_voxels, all_coords, all_num_points
 
     def encode_voxels(self, voxels, num_points_per_voxel):
         """
@@ -181,22 +194,29 @@ class TensorHelper:
 
 # PC2Tensor 类：端到端封装，输入点云特征，输出Spconv Tensor
 class PC2Tensor(nn.Module):
-    def __init__(self, device, spatial_shape):
+    def __init__(self, device, spatial_shape, use_label=False):
         super().__init__()
         self.device = device
         self.spatial_shape = spatial_shape
-        self.voxel_encoder = VoxelEncoder(device)
+        self.use_label = use_label
+        self.voxel_encoder = VoxelEncoder(device, use_label)        
 
     def forward(self, point_cloud_features):
         try:
-            encoded_features, voxel_coords, _, pc_id = self.voxel_encoder(point_cloud_features)
+            if self.use_label:
+                encoded_features, voxel_coords, _, pc_id = self.voxel_encoder(point_cloud_features)
+            else:
+                encoded_features, voxel_coords, _ = self.voxel_encoder(point_cloud_features)
             # voxel_coords is index point
             spconv_tensor = TensorHelper.create_spconv_tensor(encoded_features, voxel_coords,
                                                               point_cloud_features.shape[0], self.spatial_shape)
         except Exception as e:
             raise RuntimeError(f"\nFailed in PC2Tensor forward pass: {e}")
-
-        return spconv_tensor, pc_id
+        
+        if self.use_label:
+            return spconv_tensor, pc_id
+        else:
+            return spconv_tensor
 
 
 #########################  网络相关（实验性）   ######################

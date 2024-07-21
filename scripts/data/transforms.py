@@ -21,7 +21,6 @@ class Resize: # Deprecated since all images are resized to 448x448
 
 class ToTensor:
     def __call__(self, sample):
-        scene_id = sample['scene_id']
         image, label = sample['image'], sample['label']
         depth, R, T, intrinsic_mat = sample['depth'], sample['R'], sample['T'], sample['intrinsic_mat']
         
@@ -68,7 +67,6 @@ class ToTensor:
             'R': R,
             'T': T,
             'intrinsic_mat': intrinsic_mat,
-            'scene_id': scene_id
         }
         
         return sample
@@ -79,7 +77,6 @@ class Normalize:
         self.normalize = transforms.Normalize(mean=mean, std=std)
     
     def __call__(self, sample):
-        scene_id = sample['scene_id']
         image, label = sample['image'], sample['label']
         depth, R, T, intrinsic_mat = sample['depth'], sample['R'], sample['T'], sample['intrinsic_mat']
         image = self.normalize(image)
@@ -90,7 +87,6 @@ class Normalize:
             'R': R,
             'T': T,
             'intrinsic_mat': intrinsic_mat,
-            'scene_id': scene_id
         }
         
         return sample

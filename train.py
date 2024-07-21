@@ -111,6 +111,9 @@ def calculate_accuracy(outputs, labels, ignore_index):
     total = torch.sum(valid_mask).item()
     return correct / total if total > 0 else 0
 
+input_2d = torch.load('/root/new-script/point_cloud_features_epoch_0_batch_0.pth')
+input_2d.to(device)
+print(input_2d.shape)   
 import spconv.pytorch as spconv
 # Training loop
 num_epochs = 500
@@ -131,30 +134,40 @@ for epoch in range(start_epoch, num_epochs):
         invalid_mask = (labels < 0)
         labels[invalid_mask] = IGNORE_INDEX
         # # Concatenate along the last dimension
-        inputs = torch.cat((coords, labels), dim=-1)
+        input_3d = torch.cat((coords, labels), dim=-1)
 
         spatial_shape = [5, 6, 6] # (x_max - x_min) / voxel_size, x+1, y, z
-        pc2tensor = PC2Tensor(device, spatial_shape)
-        spconv_tensor,pc_voxel_id = pc2tensor(inputs)
-
+        tensor2d = PC2Tensor(device, spatial_shape, use_label=False)
+        tensor3d = PC2Tensor(device, spatial_shape, use_label=True)
+        pc_2d = tensor2d(input_2d)
+        pc_3d,pc_voxel_id = tensor3d(input_3d)
+        output_2d = model3d(pc_2d)
+        output_2d = gather_features_by_pc_voxel_id(output_2d.features, pc_voxel_id)
+        print(f'output_2d shape: {output_2d.shape}')
+        
         # label_spconv_tensor = spconv_tensor.features
         # labels_sparse_tensor = spconv.SparseConvTensor(
         #     spconv_tensor.features, spconv_tensor.indices, spconv_tensor.spatial_shape, spconv_tensor.batch_size
         # )
-        optimizer.zero_grad()
-        output = model3d(spconv_tensor)
-        # output_dense = output.dense()
-        pc_voxel_id = torch.stack( pc_voxel_id, dim=0).squeeze(0)
+        # optimizer.zero_grad()
+        # output_3d = model3d(pc_3d)
+        # # output_dense = output.dense()
+        # pc_voxel_id = torch.stack( pc_voxel_id, dim=0).squeeze(0)
         
-        output = gather_features_by_pc_voxel_id(output.features, pc_voxel_id)
+        # output_3d = gather_features_by_pc_voxel_id(output_3d.features, pc_voxel_id)
         
+        # output_2d = model3d(pc_2d)
+        # output_2d = gather_features_by_pc_voxel_id(output_2d.features, pc_voxel_id)
+        
+        # print(f'output_3d shape: {output_3d.shape}')    
+        # print(f'output_2d shape: {output_2d.shape}')
 
-        # labels_flat = labels_flat.unsqueeze(-1)
-        loss = criterion(output, pc_voxel_id)
-        loss.backward()
-        optimizer.step()
+        # # labels_flat = labels_flat.unsqueeze(-1)
+        # loss = criterion(output_3d, pc_voxel_id)
+        # loss.backward()
+        # optimizer.step()
 
-        print(f"Epoch [{epoch + 1}/500], Loss: {loss.item()}")
+        # print(f"Epoch [{epoch + 1}/500], Loss: {loss.item()}")
 
 
     # print('Output shape:', output.dense().shape)

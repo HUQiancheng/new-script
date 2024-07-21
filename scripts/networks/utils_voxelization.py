@@ -55,11 +55,11 @@ class Voxelizer:
         """
         self.device = device
         self.point_to_voxel_converter = PointToVoxel(
-            vsize_xyz=[0.1, 0.1, 0.1],  #[0.05, 0.05, 0.05]还是内存不够
-            coors_range_xyz=[-1, -1, -1, 2, 3, 3], 
-            num_point_features=101,
-            max_num_voxels=2000, 
-            max_num_points_per_voxel=10,
+            vsize_xyz=[0.1, 0.1, 0.1],  # [0.05, 0.05, 0.05]还是内存不够
+            coors_range_xyz=[-1, -1, -1, 3, 5, 5],
+            num_point_features=1,
+            max_num_voxels=500,
+            max_num_points_per_voxel=20,
             device=device
         )
         
