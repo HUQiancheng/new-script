@@ -1,0 +1,24 @@
+environment:
+  CUDA_LAUNCH_BLOCKING: 1
+  PYTORCH_CUDA_ALLOC_CONF: max_split_size_mb:32
+
+paths:
+  data_dir: dataset/data
+  train_split_file: dataset/splits/nvs_sem_train.txt
+  val_split_file: dataset/splits/nvs_sem_val.txt
+  checkpoint_dir: ./checkpoints
+  tensorboard_log_dir: ./runs
+
+training:
+  batch_size: 1
+  num_workers: 8
+  num_epochs: 1000
+  save_interval: 5
+  learning_rate: 0.001
+  momentum: 0.9
+  weight_decay: 0.00001  # Correctly formatted as a float
+  ignore_index: -1
+
+model:
+  num_classes: 101
+  spatial_shape: [20, 30, 30]

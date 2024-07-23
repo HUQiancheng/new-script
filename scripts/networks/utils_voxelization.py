@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 import spconv.pytorch as spconv
 from spconv.pytorch.utils import PointToVoxel
-
+import open3d as o3d
+import numpy as np
+from spconv.pytorch.utils import PointToVoxel, gather_features_by_pc_voxel_id
 """
 ====================================
 点云特征到稀疏卷积张量的转换流程
@@ -37,7 +39,6 @@ from spconv.pytorch.utils import PointToVoxel
 """
 
 
-
 #########################   数据相关    #####################
 # 数据加载函数（网络中不需要）
 def load_pth(file_path):
@@ -46,7 +47,7 @@ def load_pth(file_path):
 
 #########################  Voxel相关   ######################
 class Voxelizer:
-    def __init__(self, device):
+    def __init__(self, device, use_label=False):
         """
         初始化 Voxelizer。
 
@@ -54,6 +55,27 @@ class Voxelizer:
             device (torch.device): 运行计算的设备。
         """
         self.device = device
+
+        self.use_label = use_label
+        if self.use_label:
+            self.gen = PointToVoxel(
+                vsize_xyz=[1, 1, 1],  # [0.05, 0.05, 0.05]还是内存不够
+                coors_range_xyz=[-1, -1, -1, 3, 5, 5],
+                num_point_features=1,
+                max_num_voxels=500,
+                max_num_points_per_voxel=20,
+                device=device
+            )
+        else:
+            self.gen = PointToVoxel(
+                vsize_xyz=[1, 1, 1],  # [0.05, 0.05, 0.05]还是内存不够
+                coors_range_xyz=[-1, -1, -1, 3, 5, 5],
+                num_point_features=101,
+                max_num_voxels=500,
+                max_num_points_per_voxel=20,
+                device=device
+            )
+
         self.point_to_voxel_converter = PointToVoxel(
             vsize_xyz=[0.1, 0.1, 0.1],  # [0.05, 0.05, 0.05]还是内存不够
             coors_range_xyz=[-1, -1, -1, 3, 5, 5],
@@ -63,6 +85,7 @@ class Voxelizer:
             device=device
         )
         
+
     def generate_voxels(self, pc):
         """
         从点云数据生成体素。
@@ -76,15 +99,21 @@ class Voxelizer:
             num_points_per_voxel (Tensor): 每个体素中的点数，形状为 (num_voxels)。
         """
         try:
-            voxels, coords, num_points_per_voxel = self.point_to_voxel_converter(pc, empty_mean=True)
+            # voxels, coords, num_points_per_voxel = self.point_to_voxel_converter(pc, empty_mean=True)
+            if self.use_label:
+                voxels, coords, num_points_per_voxel, pc_voxel_id = self.gen.generate_voxel_with_id(pc, empty_mean=True)
+            else:
+                voxels, coords, num_points_per_voxel = self.gen(pc, empty_mean=True)
         except Exception as e:
             raise RuntimeError(f"Failed to generate voxels: {e}")
-        
-        return voxels, coords, num_points_per_voxel
+        if self.use_label:
+            return voxels, coords, num_points_per_voxel, pc_voxel_id
+        else:
+            return voxels, coords, num_points_per_voxel
 
-    
+
 class VoxelEncoder(nn.Module):
-    def __init__(self, device):
+    def __init__(self, device, use_label=False):
         """
         初始化 VoxelEncoder。
 
@@ -93,7 +122,8 @@ class VoxelEncoder(nn.Module):
         """
         super().__init__()
         self.device = device
-        self.voxelizer = Voxelizer(device)
+        self.voxelizer = Voxelizer(device, use_label)
+        self.use_label = use_label
 
     def forward(self, point_cloud_features):
         """
@@ -111,22 +141,33 @@ class VoxelEncoder(nn.Module):
         all_voxels = []
         all_coords = []
         all_num_points = []
+        if self.use_label:
+            all_pc_voxel_id = []
 
         # 处理批量中的每个点云
         for i in range(batch_size):
             pc = point_cloud_features[i].to(self.device)
             try:
-                voxels, coords, num_points_per_voxel = self.voxelizer.generate_voxels(pc)
-                encoded_features = self.encode_voxels(voxels, num_points_per_voxel)
+                if self.use_label:
+                    voxels, coords, num_points_per_voxel, pc_voxel_id = self.voxelizer.generate_voxels(pc)
+                else:
+                    voxels, coords, num_points_per_voxel = self.voxelizer.generate_voxels(pc)
+                voxels = self.encode_voxels(voxels, num_points_per_voxel) # id encoder 选取最频繁的点
             except Exception as e:
                 raise RuntimeError(f"Failed to process batch {i}: {e}")
-            
-            all_voxels.append(encoded_features)
+
+            all_voxels.append(voxels)
             all_coords.append(coords)
             all_num_points.append(num_points_per_voxel)
+            if self.use_label:
+                all_pc_voxel_id.append(pc_voxel_id)
+            
         
-        return all_voxels, all_coords, all_num_points
-    
+        if self.use_label:
+            return all_voxels, all_coords, all_num_points, all_pc_voxel_id
+        else:
+            return all_voxels, all_coords, all_num_points
+
     def encode_voxels(self, voxels, num_points_per_voxel):
         """
 
@@ -158,82 +199,108 @@ class TensorHelper:
             coords = torch.cat((batch_indices, coords), dim=1)
             all_features.append(features)
             all_coords.append(coords)
-        
+
         all_features = torch.cat(all_features, dim=0)
         all_coords = torch.cat(all_coords, dim=0)
-        
+
         try:
             spconv_tensor = spconv.SparseConvTensor(
                 all_features, all_coords, spatial_shape, batch_size
             )
         except Exception as e:
             raise RuntimeError(f"\nFailed to create SparseConvTensor: {e}")
-        
+
         return spconv_tensor
 
-    
+
 # PC2Tensor 类：端到端封装，输入点云特征，输出Spconv Tensor
 class PC2Tensor(nn.Module):
-    def __init__(self, device, spatial_shape):
+    def __init__(self, device, spatial_shape, use_label=False):
         super().__init__()
         self.device = device
         self.spatial_shape = spatial_shape
-        self.voxel_encoder = VoxelEncoder(device)
+        self.use_label = use_label
+        self.voxel_encoder = VoxelEncoder(device, use_label)        
 
     def forward(self, point_cloud_features):
         try:
-            encoded_features, voxel_coords, _ = self.voxel_encoder(point_cloud_features)
-            spconv_tensor = TensorHelper.create_spconv_tensor(encoded_features, voxel_coords, point_cloud_features.shape[0], self.spatial_shape)
+            if self.use_label:
+                encoded_features, voxel_coords, _, pc_id = self.voxel_encoder(point_cloud_features)
+                # use torch stack to convert pc_id list to tensor
+                pc_id = torch.stack(pc_id, dim=0)
+            else:
+                encoded_features, voxel_coords, _ = self.voxel_encoder(point_cloud_features)
+            # voxel_coords is index point
+            spconv_tensor = TensorHelper.create_spconv_tensor(encoded_features, voxel_coords,
+                                                              point_cloud_features.shape[0], self.spatial_shape)
         except Exception as e:
             raise RuntimeError(f"\nFailed in PC2Tensor forward pass: {e}")
         
-        return spconv_tensor
+        if self.use_label:
+            return spconv_tensor, pc_id
+        else:
+            return spconv_tensor
 
 
 #########################  网络相关（实验性）   ######################
 # SimpleSpConvNet 类， 注意不要混入真正的网络
 class SimpleSpConvNet(nn.Module):
-    def __init__(self, input_channels, spatial_shape):
-        super().__init__()
-        self.conv_input = spconv.SparseSequential(
-            spconv.SparseConv3d(input_channels, 64, 3, padding=1),
-            nn.BatchNorm1d(64),
+    def __init__(self, input_channels=1, output_channels=100):
+        super(SimpleSpConvNet, self).__init__()
+        self.encoder = spconv.SparseSequential(
+            spconv.SparseConv3d(input_channels, 32, 3, 2, indice_key="conv1"),
+            nn.BatchNorm1d(32),
             nn.ReLU(),
-            spconv.SubMConv3d(64, 64, 3, padding=1),
-            nn.BatchNorm1d(64),
+            spconv.SubMConv3d(32, 32, 3, indice_key="subm1"),
+            nn.BatchNorm1d(32),
             nn.ReLU(),
-            spconv.SparseConv3d(64, 32, 3, padding=1),
         )
-        
+        self.decoder = spconv.SparseSequential(
+            spconv.SparseInverseConv3d(32, output_channels, 3, indice_key="conv1"), 
+        )
+
     def forward(self, x):
-        try:
-            x = self.conv_input(x)
-        except Exception as e:
-            raise RuntimeError(f"\nFailed in SimpleSpConvNet forward pass: {e}")
-        
+        x = self.encoder(x)
+        x = self.decoder(x)
         return x
 
+def visualize_labels_as_voxels(indices, labels, voxel_size=0.05):
+    max_label = labels.max().item()
+    colors = np.zeros((labels.shape[0], 3))
+    for i in range(labels.shape[0]):
+        colors[i] = [labels[i] / max_label, 0, 1 - labels[i] / max_label]
 
+    points = indices[:, 1:4] * voxel_size  # Skip batch index and apply voxel size
+
+    # Create Open3D point cloud
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(points)
+    pcd.colors = o3d.utility.Vector3dVector(colors)
+
+    # Create voxel grid
+    voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(pcd, voxel_size)
+    return voxel_grid
 # Example Usage
 # main 函数
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     pth_file = "/home/lukas/Desktop/new-script/other/try_3d/point_cloud_features_epoch_1000_batch_0.pth"
     point_cloud_features = load_pth(pth_file)
-    
+
     print('Tensor shape', point_cloud_features.shape)
     print('Tensor type', point_cloud_features.dtype)
-    
+
     spatial_shape = [30, 40, 40]
     pc2tensor = PC2Tensor(device, spatial_shape)
     spconv_tensor = pc2tensor(point_cloud_features)
-    
+
     input_channels = spconv_tensor.features.shape[1]
     model = SimpleSpConvNet(input_channels, spatial_shape)
     model.to(device)
     output = model(spconv_tensor)
-    
+
     print('Output shape:', output.features.shape)
+
 
 if __name__ == "__main__":
     main()

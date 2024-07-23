@@ -21,6 +21,8 @@ class Resize: # Deprecated since all images are resized to 448x448
 
 class ToTensor:
     def __call__(self, sample):
+        coords = sample['coord_pc']
+        labels = sample['label_pc']
         image, label = sample['image'], sample['label']
         depth, R, T, intrinsic_mat = sample['depth'], sample['R'], sample['T'], sample['intrinsic_mat']
         
@@ -59,6 +61,14 @@ class ToTensor:
             intrinsic_mat = torch.tensor(intrinsic_mat, dtype=torch.float32)
         else:
             intrinsic_mat = intrinsic_mat.clone().detach().float()
+            
+        if isinstance(coords, np.ndarray):
+            coords = coords.astype(np.float32)
+            coords = torch.tensor(coords, dtype=torch.float32)
+            
+        if isinstance(labels, np.ndarray):
+            labels = labels.astype(np.int32)
+            labels = torch.tensor(labels, dtype=torch.long)
         
         sample = {
             'image': image,
@@ -67,6 +77,9 @@ class ToTensor:
             'R': R,
             'T': T,
             'intrinsic_mat': intrinsic_mat,
+            'coord_pc': coords,
+            'label_pc': labels
+
         }
         
         return sample
@@ -77,6 +90,11 @@ class Normalize:
         self.normalize = transforms.Normalize(mean=mean, std=std)
     
     def __call__(self, sample):
+
+        coords = sample['coord_pc']
+        labels = sample['label_pc']
+        scene_id = sample['scene_id']
+
         image, label = sample['image'], sample['label']
         depth, R, T, intrinsic_mat = sample['depth'], sample['R'], sample['T'], sample['intrinsic_mat']
         image = self.normalize(image)
@@ -87,6 +105,11 @@ class Normalize:
             'R': R,
             'T': T,
             'intrinsic_mat': intrinsic_mat,
+
+            'scene_id': scene_id,
+            'coord_pc': coords,
+            'label_pc': labels
+
         }
         
         return sample
